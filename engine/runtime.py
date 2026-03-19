@@ -1,8 +1,11 @@
 from engine.intent_classifier import classify_intent
 from engine.summary_memory import update_summary
-from engine.voice_local import LocalVoiceSession
 import random
 
+try:
+    from engine.voice_local import LocalVoiceSession
+except Exception:
+    LocalVoiceSession = None
 
 class AgentRuntime:
     MAX_RETRIES_PER_STATE = 3
@@ -12,7 +15,11 @@ class AgentRuntime:
         self.state_id = agent.start_state
         self.state_memory = {}
         self.summary_memory = ""
-        self.voice = LocalVoiceSession()
+
+        if LocalVoiceSession:
+            self.voice = LocalVoiceSession()
+        else:
+            self.voice = None
 
         # Campaign data (Excel / future CRM)
         self.campaign_context = campaign_context or {}
@@ -64,11 +71,17 @@ class AgentRuntime:
             if state_name == "OPEN":
                 if not self.context["has_greeted"]:
                     if prompt:
-                        self.voice.speak(prompt)
+                        if self.voice:
+                            self.voice.speak(prompt)
+                        else:
+                            print(f"AGENT: {prompt}")
                     self.context["has_greeted"] = True
             else:
                 if prompt:
-                    self.voice.speak(prompt)
+                    if self.voice:
+                        self.voice.speak(prompt)
+                    else:
+                        print(f"AGENT: {prompt}")
 
             # Auto transitions
             if state.get("auto"):
@@ -82,7 +95,10 @@ class AgentRuntime:
                 continue
 
             # Listen
-            user_input = self.voice.listen()
+            if self.voice:
+                user_input = self.voice.listen()
+            else:
+                user_input = input("USER: ").strip()
             self.state_memory["_last_user_input"] = user_input
 
             intent, confidence, entities = classify_intent(
@@ -96,11 +112,23 @@ class AgentRuntime:
                 self.context["retry_count"][state_name] += 1
 
                 if self.context["retry_count"][state_name] >= self.MAX_RETRIES_PER_STATE:
-                    self.voice.speak("Let’s pause here for now. We’ll follow up shortly.")
+                    message = "Let’s pause here for now. We’ll follow up shortly."
+
+                    if self.voice:
+                        self.voice.speak(message)
+                    else:
+                        print(f"AGENT: {message}")
+
                     self.state_id = "END"
                     continue
 
-                self.voice.speak("Sorry, could you clarify that?")
+                message = "Sorry, could you clarify that?"
+
+                if self.voice:
+                    self.voice.speak(message)
+                else:
+                    print(f"AGENT: {message}")
+
                 continue
 
             self.context["retry_count"][state_name] = 0
@@ -136,3 +164,44 @@ class AgentRuntime:
                 next_state = self.state_memory.pop("_return_state", "RELEVANCE_CHECK")
 
             self.state_id = next_state
+ 
+    def process_turn(self, user_input):
+        state = self.agent.states[self.state_id]
+        state_name = self.state_id
+
+        self.state_memory["_last_user_input"] = user_input
+
+        intent, confidence, entities = classify_intent(
+            user_input,
+            state["allowed_intents"],
+            self.summary_memory
+        )
+
+        self.state_memory["_last_user_intent"] = intent
+
+        if entities:
+            self.state_memory.update(entities)
+
+        self.summary_memory = update_summary(
+            self.summary_memory,
+            user_input,
+            ""
+        )
+
+        next_state = state["transitions"].get(intent)
+
+        if not next_state:
+            return "Got it."
+
+        self.state_id = next_state
+
+        if self.state_id == "END":
+            return "Thank you for your time."
+
+        next_state_obj = self.agent.states[self.state_id]
+        prompt = next_state_obj.get("prompt")
+
+        if callable(prompt):
+            prompt = prompt(self.state_memory)
+
+        return prompt

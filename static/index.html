@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Campaign Dialer — Agentix</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#0a0a0f;--surface:#111118;--surface2:#17171f;
+    --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+    --accent:#00e5a0;--accent2:#00b87a;--accent-dim:rgba(0,229,160,0.1);--accent-glow:rgba(0,229,160,0.25);
+    --danger:#ff4d6d;--danger-dim:rgba(255,77,109,0.12);
+    --warn:#ffb347;--warn-dim:rgba(255,179,71,0.12);
+    --blue:#6b9fff;--blue-dim:rgba(107,159,255,0.12);
+    --text:#e8e8f0;--text2:#8888a0;--text3:#55556a;
+    --mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;--display:'Syne',sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;line-height:1.5;}
+  body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:0;}
+  .shell{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 2rem 4rem;}
+
+  header{display:flex;align-items:center;justify-content:space-between;padding:2rem 0 1.5rem;border-bottom:1px solid var(--border);margin-bottom:2.5rem;flex-wrap:wrap;gap:1rem;}
+  .logo{display:flex;align-items:center;gap:0.75rem;}
+  .logo-mark{width:36px;height:36px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:0.85rem;font-weight:800;color:#000;}
+  .logo-text{font-family:var(--display);font-size:1.1rem;font-weight:700;letter-spacing:-0.5px;}
+  .logo-text span{color:var(--accent);}
+  .header-right{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;}
+  .url-field{display:flex;align-items:center;gap:0.5rem;}
+  .url-field label{font-family:var(--mono);font-size:0.65rem;color:var(--text3);white-space:nowrap;}
+  .url-field input{background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:0.4rem 0.8rem;color:var(--text);font-family:var(--mono);font-size:0.75rem;outline:none;width:290px;transition:border-color 0.2s;}
+  .url-field input:focus{border-color:var(--accent);}
+  .status-pill{display:flex;align-items:center;gap:0.45rem;font-family:var(--mono);font-size:0.68rem;background:var(--surface2);border:1px solid var(--border2);border-radius:20px;padding:0.3rem 0.8rem;color:var(--text2);white-space:nowrap;}
+  .status-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--text3);transition:background 0.3s;}
+  .status-pill.connected .dot{background:var(--accent);box-shadow:0 0 6px var(--accent);}
+  .status-pill.error .dot{background:var(--danger);}
+
+  .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;gap:1rem;flex-wrap:wrap;}
+  .toolbar-left{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;}
+  .page-title{font-family:var(--display);font-size:1.2rem;font-weight:700;}
+  .count-pill{font-family:var(--mono);font-size:0.68rem;background:var(--surface2);border:1px solid var(--border2);border-radius:20px;padding:0.25rem 0.75rem;color:var(--text2);}
+  .btn{display:inline-flex;align-items:center;gap:0.4rem;padding:0.55rem 1.1rem;border:none;border-radius:8px;font-family:var(--sans);font-size:0.82rem;font-weight:500;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+  .btn-primary{background:var(--accent);color:#000;}
+  .btn-primary:hover{background:var(--accent2);}
+  .btn-primary:disabled{opacity:0.4;cursor:not-allowed;}
+  .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2);}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--text);}
+
+  .stats-row{display:flex;gap:0.75rem;margin-bottom:1.5rem;flex-wrap:wrap;}
+  .stat-chip{display:flex;align-items:center;gap:0.5rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.55rem 1rem;font-family:var(--mono);font-size:0.72rem;}
+  .stat-dot{width:7px;height:7px;border-radius:50%;}
+  .stat-dot.pending{background:var(--text3);}
+  .stat-dot.calling{background:var(--warn);box-shadow:0 0 5px var(--warn);}
+  .stat-dot.done{background:var(--accent);}
+  .stat-dot.failed{background:var(--danger);}
+  .stat-val{font-weight:500;color:var(--text);}
+  .stat-lbl{color:var(--text2);}
+
+  .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+  table{width:100%;border-collapse:collapse;}
+  thead tr{background:var(--surface2);border-bottom:1px solid var(--border2);}
+  th{padding:0.75rem 1rem;font-family:var(--mono);font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);font-weight:500;text-align:left;white-space:nowrap;}
+  tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s;}
+  tbody tr:last-child{border-bottom:none;}
+  tbody tr:hover{background:rgba(255,255,255,0.018);}
+  td{padding:0.9rem 1rem;font-size:0.82rem;color:var(--text);vertical-align:middle;}
+  td.mono{font-family:var(--mono);font-size:0.75rem;}
+  .cell-sub{font-size:0.68rem;color:var(--text2);margin-top:0.15rem;}
+  .call-sid{font-family:var(--mono);font-size:0.6rem;color:var(--text3);margin-top:0.2rem;}
+
+  .domain-badge{display:inline-block;font-family:var(--mono);font-size:0.6rem;border-radius:4px;padding:0.15rem 0.45rem;text-transform:uppercase;letter-spacing:0.06em;}
+  .domain-badge.healthcare{background:var(--blue-dim);color:var(--blue);}
+  .domain-badge.finance{background:var(--accent-dim);color:var(--accent);}
+  .domain-badge.real_estate{background:var(--warn-dim);color:var(--warn);}
+
+  .status-badge{display:inline-flex;align-items:center;gap:0.3rem;font-family:var(--mono);font-size:0.63rem;font-weight:500;border-radius:6px;padding:0.2rem 0.5rem;white-space:nowrap;}
+  .status-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;}
+  .status-badge.pending{background:rgba(85,85,106,0.3);color:var(--text2);}
+  .status-badge.calling{background:var(--warn-dim);color:var(--warn);}
+  .status-badge.completed{background:var(--accent-dim);color:var(--accent);}
+  .status-badge.failed,.status-badge.busy,.status-badge.no-answer{background:var(--danger-dim);color:var(--danger);}
+
+  .call-btn{display:inline-flex;align-items:center;gap:0.35rem;padding:0.38rem 0.85rem;border:none;border-radius:7px;font-family:var(--sans);font-size:0.77rem;font-weight:500;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+  .call-btn.ready{background:var(--accent);color:#000;}
+  .call-btn.ready:hover{background:var(--accent2);transform:scale(1.03);}
+  .call-btn.in-prog{background:var(--warn-dim);color:var(--warn);border:1px solid rgba(255,179,71,0.3);cursor:default;}
+  .call-btn.done{background:var(--accent-dim);color:var(--accent);cursor:default;}
+  .call-btn.err{background:var(--danger-dim);color:var(--danger);border:1px solid rgba(255,77,109,0.3);}
+  .call-btn.err:hover{opacity:0.8;transform:scale(1.03);}
+
+  .skel{height:13px;border-radius:4px;background:linear-gradient(90deg,var(--surface2) 25%,var(--border2) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;}
+  @keyframes shimmer{to{background-position:-200% 0;}}
+  .skeleton-row td{padding:1.1rem 1rem;}
+
+  .empty-state{padding:4.5rem 2rem;text-align:center;}
+  .empty-state .ei{font-size:2.5rem;margin-bottom:1rem;opacity:0.35;}
+  .empty-state h3{font-family:var(--display);font-size:1rem;color:var(--text2);margin-bottom:0.4rem;}
+  .empty-state p{font-size:0.78rem;color:var(--text3);}
+
+  .toast-container{position:fixed;top:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem;}
+  .toast{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:0.7rem 1rem;font-size:0.79rem;color:var(--text);max-width:340px;display:flex;align-items:flex-start;gap:0.55rem;box-shadow:0 8px 30px rgba(0,0,0,0.4);animation:slideIn 0.2s ease;}
+  .toast.success{border-left:3px solid var(--accent);}
+  .toast.error{border-left:3px solid var(--danger);}
+  .toast.info{border-left:3px solid var(--blue);}
+  @keyframes slideIn{from{opacity:0;transform:translateX(16px);}to{opacity:1;}}
+
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:100;display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn 0.15s ease;}
+  @keyframes fadeIn{from{opacity:0;}}
+  .modal{background:var(--surface);border:1px solid var(--border2);border-radius:18px;padding:2rem;max-width:460px;width:100%;animation:popIn 0.18s ease;}
+  @keyframes popIn{from{transform:scale(0.95);opacity:0;}}
+  .modal h3{font-family:var(--display);font-size:1.05rem;font-weight:700;margin-bottom:1.2rem;}
+  .modal-detail{background:var(--surface2);border-radius:10px;padding:1rem;margin-bottom:1.2rem;display:flex;flex-direction:column;gap:0.55rem;}
+  .modal-row{display:flex;gap:0.5rem;font-size:0.8rem;}
+  .modal-row .k{color:var(--text2);font-family:var(--mono);font-size:0.67rem;min-width:95px;}
+  .modal-row .v{color:var(--text);font-family:var(--mono);font-size:0.74rem;word-break:break-all;}
+  .modal-actions{display:flex;gap:0.75rem;justify-content:flex-end;}
+
+  ::-webkit-scrollbar{width:5px;height:5px;}
+  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+  @media(max-width:640px){
+    th:nth-child(3),td:nth-child(3),th:nth-child(5),td:nth-child(5){display:none;}
+    .url-field input{width:180px;}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">AG</div>
+      <div class="logo-text">Agentix <span>Dialer</span></div>
+    </div>
+    <div class="header-right">
+      <div class="url-field">
+        <label>SERVER</label>
+        <input type="text" id="serverUrl" value="https://api.agentix.nsdaindia.com" placeholder="https://yourdomain.com" />
+      </div>
+      <div class="status-pill" id="statusPill">
+        <div class="dot"></div>
+        <span id="statusText">Not connected</span>
+      </div>
+      <button class="btn btn-ghost" onclick="loadCampaigns()">⟳ Refresh</button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <span class="page-title">Campaigns</span>
+      <span class="count-pill" id="countPill">— contacts</span>
+    </div>
+    <button class="btn btn-primary" id="callAllBtn" onclick="callAllPending()" disabled>▶ Call All Pending</button>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-chip"><div class="stat-dot pending"></div><span class="stat-val" id="s-pending">0</span><span class="stat-lbl">Pending</span></div>
+    <div class="stat-chip"><div class="stat-dot calling"></div><span class="stat-val" id="s-calling">0</span><span class="stat-lbl">In-call</span></div>
+    <div class="stat-chip"><div class="stat-dot done"></div><span class="stat-val" id="s-done">0</span><span class="stat-lbl">Completed</span></div>
+    <div class="stat-chip"><div class="stat-dot failed"></div><span class="stat-val" id="s-failed">0</span><span class="stat-lbl">Failed / Busy / No-ans</span></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Organisation</th><th>Domain</th>
+          <th>Phone</th><th>Offer</th><th>Location</th>
+          <th>Status</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr class="skeleton-row"><td><div class="skel" style="width:20px"></div></td><td><div class="skel" style="width:140px"></div></td><td><div class="skel" style="width:80px"></div></td><td><div class="skel" style="width:120px"></div></td><td><div class="skel" style="width:150px"></div></td><td><div class="skel" style="width:70px"></div></td><td><div class="skel" style="width:65px"></div></td><td><div class="skel" style="width:65px"></div></td></tr>
+        <tr class="skeleton-row"><td><div class="skel" style="width:20px"></div></td><td><div class="skel" style="width:110px"></div></td><td><div class="skel" style="width:65px"></div></td><td><div class="skel" style="width:120px"></div></td><td><div class="skel" style="width:120px"></div></td><td><div class="skel" style="width:55px"></div></td><td><div class="skel" style="width:65px"></div></td><td><div class="skel" style="width:65px"></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast-container" id="toastCt"></div>
+
+<div class="modal-backdrop" id="modalBd" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3>📞 Confirm Call</h3>
+    <div class="modal-detail" id="modalDetail"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="modalConfirmBtn">Call Now</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let campaigns = [];
+
+function getServer() {
+  return document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+}
+
+async function loadCampaigns() {
+  const pill = document.getElementById('statusPill');
+  const txt  = document.getElementById('statusText');
+  pill.className = 'status-pill';
+  txt.textContent = 'Connecting…';
+  try {
+    const r = await fetch(`${getServer()}/campaigns`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    campaigns = data.map(c => {
+      const ex = campaigns.find(e => e.index === c.index);
+      return { ...c, _status: ex?._status || 'pending', _callSid: ex?._callSid || null };
+    });
+    pill.className = 'status-pill connected';
+    txt.textContent = `Connected · ${campaigns.length} campaigns`;
+    document.getElementById('callAllBtn').disabled = false;
+    renderTable(); updateStats();
+    toast(`Loaded ${campaigns.length} campaigns`, 'success');
+  } catch(e) {
+    pill.className = 'status-pill error';
+    txt.textContent = 'Connection failed';
+    document.getElementById('tableBody').innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="ei">🔌</div><h3>Could not connect to server</h3><p>Check the server URL above and make sure FastAPI is running.</p></div></td></tr>`;
+    document.getElementById('countPill').textContent = '— contacts';
+    toast(`Cannot reach server: ${e.message}`, 'error');
+  }
+}
+
+function renderTable() {
+  document.getElementById('countPill').textContent = `${campaigns.length} contacts`;
+  const body = document.getElementById('tableBody');
+  if (!campaigns.length) {
+    body.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="ei">📭</div><h3>No campaigns found</h3><p>Add rows to campaigns.xlsx and restart the server.</p></div></td></tr>`;
+    return;
+  }
+  body.innerHTML = campaigns.map((c, i) => {
+    const domCls = c.domain.replace(/\s+/g,'_');
+    const sid = c._callSid ? `<div class="call-sid">${c._callSid.substring(0,18)}…</div>` : '';
+    return `<tr>
+      <td class="mono" style="color:var(--text3)">${i+1}</td>
+      <td><div style="font-weight:500">${esc(c.organization_name)}</div><div class="cell-sub">${esc(c.service_name)}</div></td>
+      <td><span class="domain-badge ${domCls}">${esc(c.domain)}</span></td>
+      <td class="mono">${esc(c.phone)}</td>
+      <td>${esc(c.offer_title)}</td>
+      <td style="color:var(--text2)">${esc(c.location)}</td>
+      <td><span class="status-badge ${c._status}">${statusLabel(c._status)}</span>${sid}</td>
+      <td>${actionBtn(c)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function statusLabel(s) {
+  return {pending:'Pending',calling:'Calling…',completed:'Completed',failed:'Failed',busy:'Busy','no-answer':'No Answer'}[s] || s;
+}
+function actionBtn(c) {
+  if (c._status === 'pending')   return `<button class="call-btn ready"   onclick="confirmCall(${c.index})">📞 Call</button>`;
+  if (c._status === 'calling')   return `<button class="call-btn in-prog" disabled>📡 Calling…</button>`;
+  if (c._status === 'completed') return `<button class="call-btn done"    disabled>✓ Done</button>`;
+  return `<button class="call-btn err" onclick="confirmCall(${c.index})">↺ Retry</button>`;
+}
+
+function updateStats() {
+  let p=0,cl=0,d=0,f=0;
+  campaigns.forEach(c => {
+    if(c._status==='completed') d++;
+    else if(c._status==='calling') cl++;
+    else if(['failed','busy','no-answer'].includes(c._status)) f++;
+    else p++;
+  });
+  document.getElementById('s-pending').textContent = p;
+  document.getElementById('s-calling').textContent = cl;
+  document.getElementById('s-done').textContent    = d;
+  document.getElementById('s-failed').textContent  = f;
+}
+
+function confirmCall(index) {
+  const c = campaigns.find(c => c.index === index);
+  if (!c) return;
+  document.getElementById('modalDetail').innerHTML = `
+    <div class="modal-row"><span class="k">Organisation</span><span class="v">${esc(c.organization_name)}</span></div>
+    <div class="modal-row"><span class="k">Phone</span><span class="v">${esc(c.phone)}</span></div>
+    <div class="modal-row"><span class="k">Offer</span><span class="v">${esc(c.offer_title)}</span></div>
+    <div class="modal-row"><span class="k">Service</span><span class="v">${esc(c.service_name)}</span></div>
+    <div class="modal-row"><span class="k">Location</span><span class="v">${esc(c.location)}</span></div>
+  `;
+  document.getElementById('modalConfirmBtn').onclick = () => { closeModal(); placeCall(index); };
+  document.getElementById('modalBd').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modalBd').style.display = 'none'; }
+
+async function placeCall(index) {
+  const c = campaigns.find(c => c.index === index);
+  if (!c) return;
+  c._status = 'calling';
+  renderTable(); updateStats();
+  try {
+    const r = await fetch(`${getServer()}/make-call`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaign_index: index })
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      c._status = 'failed';
+      toast(`Call failed: ${data.detail || r.status}`, 'error');
+    } else {
+      c._callSid = data.call_sid;
+      toast(`✓ Dialing ${c.phone} — ${c.organization_name}`, 'success');
+      // Auto-poll after 90s to check if call finished
+      setTimeout(() => autoPoll(index), 90000);
+    }
+  } catch(e) {
+    c._status = 'failed';
+    toast(`Network error: ${e.message}`, 'error');
+  }
+  renderTable(); updateStats();
+}
+
+async function autoPoll(index) {
+  // Simple approach: reload all campaigns from server which may have DB-backed status
+  // If you add DB persistence later, /campaigns can return actual call status
+  const c = campaigns.find(c => c.index === index);
+  if (c && c._status === 'calling') {
+    // Without DB: assume completed after timeout as a fallback indicator
+    // Replace this with a real status check endpoint if you add DB logging
+    c._status = 'completed';
+    renderTable(); updateStats();
+  }
+}
+
+let callingAll = false;
+async function callAllPending() {
+  if (callingAll) return;
+  const pending = campaigns.filter(c => c._status === 'pending');
+  if (!pending.length) { toast('No pending campaigns.', 'info'); return; }
+  if (!confirm(`This will call ${pending.length} contacts sequentially. Continue?`)) return;
+  callingAll = true;
+  const btn = document.getElementById('callAllBtn');
+  btn.disabled = true; btn.textContent = `⏳ Calling ${pending.length}…`;
+  for (const c of pending) { await placeCall(c.index); await sleep(2000); }
+  callingAll = false;
+  btn.disabled = false; btn.textContent = '▶ Call All Pending';
+  toast('All calls dispatched!', 'success');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg, type='info') {
+  const ct = document.getElementById('toastCt');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${{success:'✓',error:'✕',info:'ℹ'}[type]||'ℹ'}</span><span>${esc(msg)}</span>`;
+  ct.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity 0.3s'; setTimeout(()=>el.remove(),300); }, 5000);
+}
+
+loadCampaigns();
+</script>
+</body>
+</html>
